@@ -39,12 +39,10 @@ async function getUserEmails(token: string) {
 function generateRandomPassword(length: number): string {
   const charset =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
-  }
-  return password;
+  const bytes = crypto.randomBytes(length);
+  return Array.from(bytes)
+    .map((b) => charset[b % charset.length])
+    .join("");
 }
 
 async function tracking(event: string, properties: any) {
@@ -205,9 +203,9 @@ export function authRoutes(fastify: FastifyInstance) {
       }
 
       function generateRandomCode(length = 6) {
-        const min = Math.pow(10, length - 1); // Minimum number for the given length
-        const max = Math.pow(10, length) - 1; // Maximum number for the given length
-        return Math.floor(Math.random() * (max - min + 1)) + min;
+        const min = Math.pow(10, length - 1);
+        const max = Math.pow(10, length) - 1;
+        return crypto.randomInt(min, max + 1);
       }
 
       const code = generateRandomCode();

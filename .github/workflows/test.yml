@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, next]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: peppermint_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: npx prisma generate
+
+      - name: Run API tests
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/peppermint_test
+          SECRET: dGVzdHNlY3JldA==
+          NODE_ENV: test
+        run: npm run test

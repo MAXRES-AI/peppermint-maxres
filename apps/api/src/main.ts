@@ -1,87 +1,17 @@
-import cors from "@fastify/cors";
 import "dotenv/config";
-import Fastify, { FastifyInstance } from "fastify";
-import multer from "fastify-multer";
 import fs from "fs";
 
 import { exec } from "child_process";
+import { buildApp } from "./app";
 import { track } from "./lib/hog";
 import { getEmails } from "./lib/imap";
-import { checkToken } from "./lib/jwt";
 import { prisma } from "./prisma";
-import { registerRoutes } from "./routes";
 
-// Ensure the directory exists
-const logFilePath = "./logs.log"; // Update this path to a writable location
-
-// Create a writable stream
+const logFilePath = "./logs.log";
 const logStream = fs.createWriteStream(logFilePath, { flags: "a" });
-
-// Initialize Fastify with logger
-const server: FastifyInstance = Fastify({
-  logger: {
-    stream: logStream, // Use the writable stream
-  },
-  disableRequestLogging: true,
-  trustProxy: true,
-});
-server.register(cors, {
-  origin: "*",
-
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-});
-
-server.register(multer.contentParser);
-
-registerRoutes(server);
-
-server.get(
-  "/",
-  {
-    schema: {
-      tags: ["health"], // This groups the endpoint under a category
-      description: "Health check endpoint",
-      response: {
-        200: {
-          type: "object",
-          properties: {
-            healthy: { type: "boolean" },
-          },
-        },
-      },
-    },
-  },
-  async function (request, response) {
-    response.send({ healthy: true });
-  }
-);
-
-// JWT authentication hook
-server.addHook("preHandler", async function (request: any, reply: any) {
-  try {
-    if (request.url === "/api/v1/auth/login" && request.method === "POST") {
-      return true;
-    }
-    if (
-      request.url === "/api/v1/ticket/public/create" &&
-      request.method === "POST"
-    ) {
-      return true;
-    }
-    const bearer = request.headers.authorization!.split(" ")[1];
-    checkToken(bearer);
-  } catch (err) {
-    reply.status(401).send({
-      message: "Unauthorized",
-      success: false,
-    });
-  }
-});
 
 const start = async () => {
   try {
-    // Run prisma generate and migrate commands before starting the server
     await new Promise<void>((resolve, reject) => {
       exec("npx prisma migrate deploy", (err, stdout, stderr) => {
         if (err) {
@@ -112,9 +42,15 @@ const start = async () => {
       });
     });
 
-    // connect to database
     await prisma.$connect();
-    server.log.info("Connected to Prisma");
+
+    const server = await buildApp();
+
+    // Pipe fastify logs to file
+    (server as any).log = {
+      info: (msg: string) => logStream.write(`[info] ${msg}\n`),
+      error: (msg: string) => logStream.write(`[error] ${msg}\n`),
+    };
 
     const port = 5003;
 
@@ -127,20 +63,15 @@ const start = async () => {
         }
 
         const client = track();
-
-        client.capture({
-          event: "server_started",
-          distinctId: "uuid",
-        });
-
+        client.capture({ event: "server_started", distinctId: "uuid" });
         client.shutdownAsync();
         console.info(`Server listening on ${address}`);
       }
     );
 
-    setInterval(() => getEmails(), 10000); // Call getEmails every minute
+    setInterval(() => getEmails(), 10000);
   } catch (err) {
-    server.log.error(err);
+    console.error(err);
     await prisma.$disconnect();
     process.exit(1);
   }

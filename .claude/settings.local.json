@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm audit *)",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\); const j=JSON.parse\\(d\\); const vulns=j.vulnerabilities; Object.entries\\(vulns\\).filter\\(\\([,v]\\)=>v.severity==='high'||v.severity==='critical'\\).forEach\\(\\([name,v]\\)=>console.log\\(v.severity.toUpperCase\\(\\), name, v.range\\)\\)\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('fastify:', p.dependencies.fastify\\); console.log\\('nodemailer:', p.dependencies.nodemailer\\); console.log\\('helmet:', p.dependencies['@fastify/helmet']\\); console.log\\('vitest:', p.devDependencies.vitest\\)\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('vitest:', p.devDependencies.vitest\\); console.log\\('dotenv-cli:', p.devDependencies['dotenv-cli']\\)\")",
+      "Bash(npm install *)"
+    ]
+  }
+}

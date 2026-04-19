@@ -45,7 +45,7 @@ export async function checkSession(request: FastifyRequest) {
     const currentIp = request.ip;
 
     if (
-      session.userAgent !== currentUserAgent &&
+      session.userAgent !== currentUserAgent ||
       session.ipAddress !== currentIp
     ) {
       // Potential session hijacking attempt - invalidate the session
